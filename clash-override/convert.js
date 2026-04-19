@@ -34,7 +34,7 @@ const REGIONS = [
   { code: "TR", name: "土耳其", regex: /(土耳其|TR|Turkey|🇹🇷)/i },
 ];
 const FILTER_REGEX =
-  /^(?!.*(官网|套餐|流量|expiring|剩余|时间|重置|URL|到期|过期|机场|group|sub|订阅|查询|续费|观看|频道|客服|M3U|车费|车友|上车|通知|公告|严禁|未知|Channel)).*$/i;
+  /^(?!.*(官网|套餐|流量|expiring|剩余|时间|重置|URL|到期|过期|机场|group|sub|订阅|查询|续费|观看|频道|客服|M3U|车费|车友|上车|通知|公告|严禁|未知|Channel|建议)).*$/i;
 
 // =================================================================
 // = main
@@ -47,7 +47,7 @@ function main(config) {
   const sniffer = FEATURES.SNIFFER ? buildSniffer() : {};
 
   const proxies = filterProxies(buildProxies(config), FILTER_REGEX);
-  const proxy_groups = buildProxyGroups(
+  const proxyGroups = buildProxyGroups(
     proxies,
     REGIONS,
     MAIN_GROUP_NAME,
@@ -62,7 +62,7 @@ function main(config) {
     ...dns,
     ...sniffer,
     proxies,
-    "proxy-groups": proxy_groups,
+    "proxy-groups": proxyGroups,
     ...rules,
   };
 
@@ -200,59 +200,60 @@ function buildProxies(config) {
 function buildProxyGroups(
   proxies,
   regions,
-  main_group_name,
-  include_all_proxies_in_main_group,
+  mainGroupName,
+  includeAllProxiesInMainGroup,
 ) {
-  // region groups
-  const region_groups = regions.map((region) => {
-    const region_proxies = filterProxies(proxies, region.regex);
-    if (!region_proxies.length) return null;
-    const base = {
-      name: region.name,
+  // single-pass bucketing — a proxy is added to every region whose regex matches it
+  const buckets = new Map(regions.map((r) => [r.code, []]));
+  const unknown = [];
+  for (const proxy of proxies) {
+    let matched = false;
+    for (const region of regions) {
+      if (region.regex.test(proxy.name)) {
+        buckets.get(region.code).push(proxy.name);
+        matched = true;
+      }
+    }
+    if (!matched) unknown.push(proxy.name);
+  }
+
+  const regionGroups = regions
+    .filter((r) => buckets.get(r.code).length > 0)
+    .map((r) => ({
+      name: r.name,
       type: "url-test",
-      icon: `https://cdn.jsdelivr.net/gh/Orz-3/mini@master/Color/${region.code}.png`,
-      proxies: region_proxies.map((proxy) => proxy.name),
-    };
-    return base;
-  });
+      url: "http://www.gstatic.com/generate_204",
+      interval: 300,
+      tolerance: 50,
+      icon: `https://cdn.jsdelivr.net/gh/Orz-3/mini@master/Color/${r.code}.png`,
+      proxies: buckets.get(r.code),
+    }));
 
-  // Filter out null region groups
-  const valid_region_groups = region_groups.filter((group) => group !== null);
-
-  // unknown region group
-  const matched_proxies = new Set();
-  valid_region_groups.forEach((group) => {
-    group.proxies.forEach((name) => matched_proxies.add(name));
-  });
-  const other_proxies = proxies.filter(
-    (proxy) => !matched_proxies.has(proxy.name),
-  );
-  if (other_proxies.length > 0) {
-    valid_region_groups.push({
+  if (unknown.length > 0) {
+    regionGroups.push({
       name: "未知地区",
       type: "select",
       icon: "https://cdn.jsdelivr.net/gh/Orz-3/mini@master/Color/UN.png",
-      proxies: other_proxies.map((proxy) => proxy.name),
+      proxies: unknown,
     });
   }
 
-  // main groups
-  const main_group = {
-    name: main_group_name,
+  const mainGroup = {
+    name: mainGroupName,
     type: "select",
     proxies: [
-      ...valid_region_groups.map((group) => group.name),
+      ...regionGroups.map((g) => g.name),
       "DIRECT",
-      ...(include_all_proxies_in_main_group
-        ? proxies.map((proxy) => proxy.name)
+      ...(includeAllProxiesInMainGroup
+        ? proxies.map((p) => p.name)
         : []),
     ],
   };
 
-  return [main_group, ...valid_region_groups];
+  return [mainGroup, ...regionGroups];
 }
 
-function buildRules(main_group_name) {
+function buildRules(mainGroupName) {
   return {
     "rule-providers": {
       reject: {
@@ -336,20 +337,20 @@ function buildRules(main_group_name) {
       },
     },
     rules: [
-      `RULE-SET,customProxy,${main_group_name}`,
+      `RULE-SET,customProxy,${mainGroupName}`,
       `RULE-SET,customDirect,DIRECT`,
       "RULE-SET,applications,DIRECT",
       "DOMAIN,clash.razord.top,DIRECT",
       "DOMAIN,yacd.haishan.me,DIRECT",
       "RULE-SET,private,DIRECT,no-resolve",
       "RULE-SET,reject,REJECT",
-      `RULE-SET,proxy,${main_group_name}`,
+      `RULE-SET,proxy,${mainGroupName}`,
       "RULE-SET,direct,DIRECT",
-      "RULE-SET,lancidr,DIRECT",
-      "RULE-SET,cncidr,DIRECT",
-      "GEOIP,LAN,DIRECT",
-      "GEOIP,CN,DIRECT",
-      `MATCH,${main_group_name}`,
+      "RULE-SET,lancidr,DIRECT,no-resolve",
+      "RULE-SET,cncidr,DIRECT,no-resolve",
+      "GEOIP,LAN,DIRECT,no-resolve",
+      "GEOIP,CN,DIRECT,no-resolve",
+      `MATCH,${mainGroupName}`,
     ],
   };
 }
