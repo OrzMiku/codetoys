@@ -14,6 +14,15 @@ config.font = wezterm.font_with_fallback {
   'Jetbrains Mono',
   'Consolas',
 }
+config.font_size = 14
+config.animation_fps = 120
+config.max_fps = 120
+config.window_padding = {
+  top = 0,
+  bottom = 0,
+  left = 0,
+  right = 0
+}
 
 config.default_prog = { 'pwsh.exe', '-NoLogo' }
 config.launch_menu = {

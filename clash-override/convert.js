@@ -114,24 +114,21 @@ function buildDns() {
   return {
     dns: {
       enable: true,
-      ipv6: true,
-      "prefer-h3": true,
+      ipv6: false,
+      "prefer-h3": false,
       "respect-rules": true,
-      "default-nameserver": ["tls://223.5.5.5", "tls://223.6.6.6"],
+      "default-nameserver": ["223.5.5.5", "119.29.29.29"],
       nameserver: [
-        "https://cloudflare-dns.com/dns-query",
-        "https://dns.google/dns-query",
+        "https://1.1.1.1/dns-query#RULES",
+        "https://8.8.8.8/dns-query#RULES",
       ],
-      "proxy-server-nameserver": [
-        "https://dns.alidns.com/dns-query",
-        "https://doh.pub/dns-query",
-      ],
+      "proxy-server-nameserver": ["223.5.5.5", "119.29.29.29"],
       "direct-nameserver": [
         "https://dns.alidns.com/dns-query",
         "https://doh.pub/dns-query",
       ],
       "enhanced-mode": "fake-ip",
-      "fake-ip-range": "198.18.0.1/16",
+      "fake-ip-range": "198.18.0.0/16",
       "fake-ip-filter": ["rule-set:fakeipFilter", "rule-set:trackerslist"],
     },
   };
