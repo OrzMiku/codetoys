@@ -7,7 +7,7 @@ const DEBUG = false;
 const FEATURES = {
   COMMON: true, // common settings
   DNS: true, // dns settings
-  TUN: false, // tun settings
+  TUN: true, // tun settings
   SNIFFER: true, // sniffer settings
   // whether to include all proxies in the main group
   INCLUDE_ALL_PROXIES_IN_MAIN_GROUP: false,
@@ -78,17 +78,18 @@ function buildCommonSettings() {
   return {
     "mixed-port": 7890,
     "allow-lan": false,
-    "log-level": "info",
-    "find-process-mode": "always",
+    "log-level": "warning",
+    "find-process-mode": "strict",
     "bind-address": "*",
     profile: {
       "store-selected": true,
       "store-fake-ip": true,
     },
+    "geodata-mode": true,
     "geo-auto-update": true,
     "geo-update-interval": 24,
     "geox-url": {
-      gepip:
+      geoip:
         "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip-lite.dat",
       geosite:
         "https://cdn.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat",
@@ -105,6 +106,9 @@ function buildTun() {
       device: "mohomo",
       stack: "mixed",
       "dns-hijack": ["any:53"],
+      "auto-route": true,
+      "auto-detect-interface": true,
+      "strict-route": true,
       mtu: 1500,
     },
   };
@@ -114,13 +118,14 @@ function buildDns() {
   return {
     dns: {
       enable: true,
+      "cache-algorithm": "arc",
       ipv6: false,
       "prefer-h3": false,
       "respect-rules": true,
       "default-nameserver": ["223.5.5.5", "119.29.29.29"],
       nameserver: [
-        "https://1.1.1.1/dns-query#RULES",
-        "https://8.8.8.8/dns-query#RULES",
+        "https://1.1.1.1/dns-query",
+        "https://8.8.8.8/dns-query",
       ],
       "proxy-server-nameserver": ["223.5.5.5", "119.29.29.29"],
       "direct-nameserver": [
@@ -128,8 +133,8 @@ function buildDns() {
         "https://doh.pub/dns-query",
       ],
       "enhanced-mode": "fake-ip",
-      "fake-ip-range": "198.18.0.0/16",
-      "fake-ip-filter": ["rule-set:fakeipFilter", "rule-set:trackerslist"],
+      "fake-ip-range": "198.18.0.1/16",
+      "fake-ip-filter": ["rule-set:fakeipFilter"],
     },
   };
 }
@@ -143,14 +148,17 @@ function buildSniffer() {
       "override-destination": false,
       sniff: {
         HTTP: {
-          ports: [80, 443],
-          "override-destination": false,
+          ports: [80, "8080-8880"],
+          "override-destination": true,
         },
         TLS: {
-          ports: [443],
+          ports: [443, 8443],
+        },
+        QUIC: {
+          ports: [443, 8443],
         },
       },
-      "skip-domain": ["+.push.apple.com"],
+      "skip-domain": ["+.push.apple.com", "rule-set:fakeipFilter"],
       "skip-dst-address": [
         "91.105.192.0/23",
         "91.108.4.0/22",
@@ -311,15 +319,7 @@ function buildRules(mainGroupName) {
         format: "mrs",
         interval: 86400,
         url: "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@mihomo-ruleset/fakeip-filter.mrs",
-        path: "./ruleset/fakeip-filter.yaml",
-      },
-      trackerslist: {
-        type: "http",
-        behavior: "domain",
-        format: "mrs",
-        interval: 86400,
-        url: "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@mihomo-ruleset/trackerslist.mrs",
-        path: "./ruleset/trackerslist.yaml",
+        path: "./ruleset/fakeip-filter.mrs",
       },
       customProxy: {
         type: "http",
@@ -342,7 +342,7 @@ function buildRules(mainGroupName) {
       "RULE-SET,applications,DIRECT",
       "DOMAIN,clash.razord.top,DIRECT",
       "DOMAIN,yacd.haishan.me,DIRECT",
-      "RULE-SET,private,DIRECT,no-resolve",
+      "RULE-SET,private,DIRECT",
       "RULE-SET,reject,REJECT",
       `RULE-SET,proxy,${mainGroupName}`,
       "RULE-SET,direct,DIRECT",
