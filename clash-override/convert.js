@@ -123,10 +123,7 @@ function buildDns() {
       "prefer-h3": false,
       "respect-rules": true,
       "default-nameserver": ["223.5.5.5", "119.29.29.29"],
-      nameserver: [
-        "https://1.1.1.1/dns-query",
-        "https://8.8.8.8/dns-query",
-      ],
+      nameserver: ["https://1.1.1.1/dns-query", "https://8.8.8.8/dns-query"],
       "proxy-server-nameserver": ["223.5.5.5", "119.29.29.29"],
       "direct-nameserver": [
         "https://dns.alidns.com/dns-query",
@@ -252,9 +249,7 @@ function buildProxyGroups(
     proxies: [
       ...regionGroups.map((g) => g.name),
       "DIRECT",
-      ...(includeAllProxiesInMainGroup
-        ? proxies.map((p) => p.name)
-        : []),
+      ...(includeAllProxiesInMainGroup ? proxies.map((p) => p.name) : []),
     ],
   };
 
@@ -321,24 +316,8 @@ function buildRules(mainGroupName) {
         url: "https://cdn.jsdelivr.net/gh/DustinWin/ruleset_geodata@mihomo-ruleset/fakeip-filter.mrs",
         path: "./ruleset/fakeip-filter.mrs",
       },
-      customProxy: {
-        type: "http",
-        behavior: "domain",
-        interval: 86400,
-        url: "https://cdn.jsdelivr.net/gh/OrzMiku/codetoys@main/clash-override/rules/custom-proxy.yaml",
-        path: "./ruleset/custom-proxy.yaml",
-      },
-      customDirect: {
-        type: "http",
-        behavior: "domain",
-        interval: 86400,
-        url: "https://cdn.jsdelivr.net/gh/OrzMiku/codetoys@main/clash-override/rules/custom-direct.yaml",
-        path: "./ruleset/custom-direct.yaml",
-      },
     },
     rules: [
-      `RULE-SET,customProxy,${mainGroupName}`,
-      `RULE-SET,customDirect,DIRECT`,
       "RULE-SET,applications,DIRECT",
       "DOMAIN,clash.razord.top,DIRECT",
       "DOMAIN,yacd.haishan.me,DIRECT",
@@ -354,4 +333,3 @@ function buildRules(mainGroupName) {
     ],
   };
 }
-
