@@ -15,23 +15,84 @@ const FEATURES = {
 
 const MAIN_GROUP_NAME = "节点选择";
 const REGIONS = [
-  { code: "HK", name: "香港", regex: /(香港|HK|Hong Kong|🇭🇰)/i },
-  { code: "TW", name: "台湾", regex: /(台湾|台灣|TW|Taiwan|🇹🇼)/i },
-  { code: "SG", name: "新加坡", regex: /(新加坡|狮城|SG|Singapore|🇸🇬)/i },
-  { code: "JP", name: "日本", regex: /(日本|JP|Japan|东京|🇯🇵)/i },
+  {
+    code: "HK",
+    name: "香港",
+    flag: "🇭🇰",
+    regex: /香港|(?:^|[^a-z])(?:HK|Hong[ -]?Kong)(?=$|[^a-z])/i,
+  },
+  {
+    code: "TW",
+    name: "台湾",
+    flag: "🇹🇼",
+    regex: /台湾|台灣|(?:^|[^a-z])(?:TW|Taiwan)(?=$|[^a-z])/i,
+  },
+  {
+    code: "SG",
+    name: "新加坡",
+    flag: "🇸🇬",
+    regex: /新加坡|狮城|獅城|(?:^|[^a-z])(?:SG|Singapore)(?=$|[^a-z])/i,
+  },
+  {
+    code: "JP",
+    name: "日本",
+    flag: "🇯🇵",
+    regex: /日本|东京|東京|(?:^|[^a-z])(?:JP|Japan)(?=$|[^a-z])/i,
+  },
   {
     code: "US",
     name: "美国",
-    regex: /(美国|美國|US|USA|United States|America|🇺🇸)/i,
+    flag: "🇺🇸",
+    regex: /美国|美國|(?:^|[^a-z])(?:US|USA|United[ -]?States|America)(?=$|[^a-z])/i,
   },
-  { code: "DE", name: "德国", regex: /(德国|DE|Germany|🇩🇪)/i },
-  { code: "KR", name: "韩国", regex: /(韩国|韓國|KR|Korea|South Korea|🇰🇷)/i },
-  { code: "UK", name: "英国", regex: /(英国|UK|United Kingdom|🇬🇧)/i },
-  { code: "CA", name: "加拿大", regex: /(加拿大|CA|Canada|🇨🇦)/i },
-  { code: "AU", name: "澳大利亚", regex: /(澳大利亚|AU|Australia|🇦🇺)/i },
-  { code: "FR", name: "法国", regex: /(法国|FR|France|🇫🇷)/i },
-  { code: "RU", name: "俄罗斯", regex: /(俄罗斯|RU|Russia|🇷🇺)/i },
-  { code: "TR", name: "土耳其", regex: /(土耳其|TR|Turkey|🇹🇷)/i },
+  {
+    code: "DE",
+    name: "德国",
+    flag: "🇩🇪",
+    regex: /德国|德國|(?:^|[^a-z])(?:DE|Germany)(?=$|[^a-z])/i,
+  },
+  {
+    code: "KR",
+    name: "韩国",
+    flag: "🇰🇷",
+    regex: /韩国|韓國|(?:^|[^a-z])(?:KR|Korea|South[ -]?Korea)(?=$|[^a-z])/i,
+  },
+  {
+    code: "UK",
+    name: "英国",
+    flag: "🇬🇧",
+    regex: /英国|英國|(?:^|[^a-z])(?:UK|GB|United[ -]?Kingdom)(?=$|[^a-z])/i,
+  },
+  {
+    code: "CA",
+    name: "加拿大",
+    flag: "🇨🇦",
+    regex: /加拿大|(?:^|[^a-z])(?:CA|Canada)(?=$|[^a-z])/i,
+  },
+  {
+    code: "AU",
+    name: "澳大利亚",
+    flag: "🇦🇺",
+    regex: /澳大利亚|澳大利亞|澳洲|(?:^|[^a-z])(?:AU|Australia)(?=$|[^a-z])/i,
+  },
+  {
+    code: "FR",
+    name: "法国",
+    flag: "🇫🇷",
+    regex: /法国|法國|(?:^|[^a-z])(?:FR|France)(?=$|[^a-z])/i,
+  },
+  {
+    code: "RU",
+    name: "俄罗斯",
+    flag: "🇷🇺",
+    regex: /俄罗斯|俄羅斯|(?:^|[^a-z])(?:RU|Russia)(?=$|[^a-z])/i,
+  },
+  {
+    code: "TR",
+    name: "土耳其",
+    flag: "🇹🇷",
+    regex: /土耳其|(?:^|[^a-z])(?:TR|Turkey)(?=$|[^a-z])/i,
+  },
 ];
 const FILTER_REGEX =
   /^(?!.*(官网|套餐|流量|expiring|剩余|时间|重置|URL|到期|过期|机场|group|sub|订阅|查询|续费|观看|频道|客服|M3U|车费|车友|上车|通知|公告|严禁|未知|Channel|建议)).*$/i;
@@ -40,13 +101,16 @@ const FILTER_REGEX =
 // = main
 // =================================================================
 
-function main(config) {
+function main(config = {}) {
+  if (!isRecord(config)) {
+    throw new TypeError("config must be an object");
+  }
   const common = FEATURES.COMMON ? buildCommonSettings() : {};
   const dns = FEATURES.DNS ? buildDns() : {};
   const tun = FEATURES.TUN ? buildTun() : {};
   const sniffer = FEATURES.SNIFFER ? buildSniffer() : {};
 
-  const proxies = filterProxies(buildProxies(config), FILTER_REGEX);
+  const proxies = normalizeProxies(filterProxies(buildProxies(config), FILTER_REGEX));
   const proxyGroups = buildProxyGroups(
     proxies,
     REGIONS,
@@ -174,32 +238,85 @@ function buildSniffer() {
   };
 }
 
+function isRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 function filterProxies(proxies, regex) {
-  return proxies.filter((proxy) => regex.test(proxy.name));
+  return proxies.filter((proxy) => {
+    if (!isRecord(proxy) || typeof proxy.name !== "string" || !proxy.name.trim()) {
+      throw new TypeError("Each proxy must be an object with a non-empty name");
+    }
+    // Global and sticky expressions otherwise retain state between nodes.
+    regex.lastIndex = 0;
+    return regex.test(proxy.name);
+  });
+}
+
+function normalizeProxies(proxies) {
+  const reservedNames = new Set([
+    "DIRECT", "REJECT", "REJECT-DROP", "PASS", "COMPATIBLE", "GLOBAL",
+    MAIN_GROUP_NAME, "未知地区", ...REGIONS.map((region) => region.name),
+  ]);
+  const seen = new Set();
+  return proxies.filter((proxy) => {
+    if (reservedNames.has(proxy.name)) {
+      throw new Error(`Proxy name conflicts with a group or built-in target: ${proxy.name}`);
+    }
+    // Keep the first definition: inline proxies precede provider entries.
+    if (seen.has(proxy.name)) return false;
+    seen.add(proxy.name);
+    return true;
+  });
 }
 
 function buildProxies(config) {
-  let proxies = config.proxies || [];
+  const proxies = config.proxies === undefined ? [] : config.proxies;
+  if (!Array.isArray(proxies)) throw new TypeError("config.proxies must be an array");
+  const result = [...proxies];
+  const providers = config["proxy-providers"];
+  if (providers === undefined) return result;
+  if (!isRecord(providers)) throw new TypeError("proxy-providers must be an object");
 
-  // proxy providers
-  if (!config["proxy-providers"]) return proxies;
-  const proxyProviders = config["proxy-providers"];
+  const entries = Object.entries(providers);
+  if (entries.length === 0) return result;
+  if (typeof require !== "function" || typeof __dirname !== "string") {
+    throw new Error("Loading proxy-providers requires a Node.js host with require and __dirname");
+  }
   const fs = require("fs");
   const path = require("path");
   const yaml = require("yaml");
-  Object.values(proxyProviders).forEach((provider) => {
-    if (!provider.path) return;
+  for (const [name, provider] of entries) {
+    if (!isRecord(provider) || typeof provider.path !== "string" || !provider.path.trim()) {
+      throw new TypeError(`Provider ${name} requires a local cache path`);
+    }
     const filepath = path.resolve(__dirname, "../", provider.path);
     try {
-      const content = fs.readFileSync(filepath, "utf-8");
-      const data = yaml.parse(content);
-      if (data.proxies) proxies = proxies.concat(data.proxies);
-    } catch (e) {
-      console.error(`Error reading ${filepath}:`, e);
+      const data = yaml.parse(fs.readFileSync(filepath, "utf-8"));
+      if (!isRecord(data) || !Array.isArray(data.proxies)) {
+        throw new TypeError("Expected an object containing a proxies array");
+      }
+      for (const proxy of data.proxies) result.push(proxy);
+    } catch (error) {
+      // A partial subscription can silently change routing; report failure to the host.
+      throw new Error(`Failed to load provider ${name} (${filepath}): ${error.message}`);
     }
-  });
+  }
+  return result;
+}
 
-  return proxies;
+function findRegion(name, regions) {
+  // Flags take priority over text. Unsupported or conflicting flags remain unknown.
+  const flags = name.match(/[\u{1F1E6}-\u{1F1FF}]{2}/gu) || [];
+  if (flags.length > 0) {
+    const uniqueFlags = new Set(flags);
+    if (uniqueFlags.size !== 1) return null;
+    return regions.find((region) => region.flag === flags[0]) || null;
+  }
+
+  // Do not guess the destination of names containing multiple regions.
+  const matches = regions.filter((region) => region.regex.test(name));
+  return matches.length === 1 ? matches[0] : null;
 }
 
 function buildProxyGroups(
@@ -208,18 +325,12 @@ function buildProxyGroups(
   mainGroupName,
   includeAllProxiesInMainGroup,
 ) {
-  // single-pass bucketing — a proxy is added to every region whose regex matches it
   const buckets = new Map(regions.map((r) => [r.code, []]));
   const unknown = [];
   for (const proxy of proxies) {
-    let matched = false;
-    for (const region of regions) {
-      if (region.regex.test(proxy.name)) {
-        buckets.get(region.code).push(proxy.name);
-        matched = true;
-      }
-    }
-    if (!matched) unknown.push(proxy.name);
+    const region = findRegion(proxy.name, regions);
+    if (region) buckets.get(region.code).push(proxy.name);
+    else unknown.push(proxy.name);
   }
 
   const regionGroups = regions
@@ -259,55 +370,21 @@ function buildProxyGroups(
 function buildRules(mainGroupName) {
   return {
     "rule-providers": {
-      reject: {
+      ...Object.fromEntries([
+        ["reject", "domain"],
+        ["proxy", "domain"],
+        ["direct", "domain"],
+        ["private", "domain"],
+        ["cncidr", "ipcidr"],
+        ["lancidr", "ipcidr"],
+        ["applications", "classical"],
+      ].map(([name, behavior]) => [name, {
         type: "http",
-        behavior: "domain",
+        behavior,
         interval: 86400,
-        url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt",
-        path: "./ruleset/reject.yaml",
-      },
-      proxy: {
-        type: "http",
-        behavior: "domain",
-        interval: 86400,
-        url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/proxy.txt",
-        path: "./ruleset/proxy.yaml",
-      },
-      direct: {
-        type: "http",
-        behavior: "domain",
-        interval: 86400,
-        url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/direct.txt",
-        path: "./ruleset/direct.yaml",
-      },
-      private: {
-        type: "http",
-        behavior: "domain",
-        interval: 86400,
-        url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/private.txt",
-        path: "./ruleset/private.yaml",
-      },
-      cncidr: {
-        type: "http",
-        behavior: "ipcidr",
-        interval: 86400,
-        url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/cncidr.txt",
-        path: "./ruleset/cncidr.yaml",
-      },
-      lancidr: {
-        type: "http",
-        behavior: "ipcidr",
-        interval: 86400,
-        url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/lancidr.txt",
-        path: "./ruleset/lancidr.yaml",
-      },
-      applications: {
-        type: "http",
-        behavior: "classical",
-        interval: 86400,
-        url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/applications.txt",
-        path: "./ruleset/applications.yaml",
-      },
+        url: `https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/${name}.txt`,
+        path: `./ruleset/${name}.yaml`,
+      }])),
       fakeipFilter: {
         type: "http",
         behavior: "domain",
